@@ -17,6 +17,7 @@ Backbone.ModelProperties(Book, 'title', 'author', 'language');
 // or extend Backbone.ModelWithProperties
 Book = Backbone.ModelWithProperties.extend({
    defaults: { 'language':  "english" },
+   attrs: [ 'title', 'author', 'language' ]
    ...
 });
 
