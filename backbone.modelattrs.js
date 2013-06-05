@@ -36,7 +36,6 @@
     Backbone.Model.extend = function() {
         var child = backboneModelExtend.apply(this, _.toArray(arguments));
         child.setAttrs = setAttrs;
-        //child.extend = this.extend;
         return child;
     }
 
