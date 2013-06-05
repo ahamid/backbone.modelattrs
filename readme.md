@@ -1,4 +1,4 @@
-Backbone.ModelProperties
+Backbone.ModelAttrs
 ========================
 
 A simple helper that exploits `Object.defineProperties` to generate dynamic getters/setters for Model attributes.
