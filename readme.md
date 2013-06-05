@@ -12,15 +12,33 @@ Book = Backbone.Model.extend({
     defaults: { 'language':  "english" },
     ...
 });
-Backbone.ModelProperties(Book, 'title', 'author', 'language');
+Book.setAttrs('title', 'author', 'language');
 
-// or extend Backbone.ModelWithProperties
-Book = Backbone.ModelWithProperties.extend({
-   defaults: { 'language':  "english" },
-   attrs: [ 'title', 'author', 'language' ]
-   ...
+// or extendWithAttrs
+Book = Backbone.Model.extendWithAttrs({
+    defaults: { 'language':  "english" },
+    attrs: [ 'title', 'author', 'language' ],
+    ...
 });
 
+// or extend any subclass with attrs
+Book = Backbone.ModelWithAttrs.extend({
+    defaults: { 'language':  "english" },
+    attrs: [ 'title', 'author', 'language' ]
+    ...
+}
+
+// inheritance still works as normal
+BookBase = Backbone.Model.extend({
+    ...
+});
+BookWithAttrs = BookBase.extendWithAttrs({
+    defaults: { 'language':  "english" },
+    attrs: [ 'title', 'author', 'language' ]
+});
+EvenMoreSpecializedBook = BookWithAttrs.extend({
+   ...
+});
 
 // then use properties in place of set/get
 

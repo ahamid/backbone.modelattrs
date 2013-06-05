@@ -1,321 +1,183 @@
-function shared_behavior(book) {
-    describe("attributes", function() {
-        it('should have specified defaults', function() {
-            expect(book.language).to.be("english");
-            expect(book.title).to.eql(undefined);
-            expect(book.author).to.be(undefined);
-            expect(book.attributes).to.eql({ language: "english" });
+function attrs_should_have_defaults(model, attrs, defaults) {
+    it('should have specified defaults', function() {
+        _.each(attrs, function(attr) {
+            expect(model[attr]).to.eql(defaults[attr]);
         });
+        expect(model.attributes).to.eql(defaults);
+    })
+}
 
-        it('should be accessed by setters/getters', function() {
-            var title_changed = false, author_changed = false;
-            book.on({ "change:title": function() { title_changed = true },
-                "change:author": function() { author_changed = true },
-                "change:language": function() { lang_changed = true }});
-            book.title = "test title";
-            book.author = "test author";
-            book.language = "test language";
-            expect(book.attributes).to.eql({ title: "test title", author: "test author", language: "test language" });
-            expect(title_changed).to.be(true);
-            expect(author_changed).to.be(true);
-            expect(lang_changed).to.be(true);
+function attrs_should_be_accessed_by_props(model, attrs, defaults) {
+    it('should be accessed by setters/getters', function() {
+        var changes = {},
+            expected_attrs = _.extend({}, defaults);
+        // add listeners
+        _.each(attrs, function(attr) {
+            model.on("change:" + attr, function() {
+                changes[attr] = true;
+            });
+        });
+        // invoke setters
+        _.each(attrs, function(attr) {
+            model[attr] = attr + " changed via property";
+            expected_attrs[attr] = attr + " changed via property";
+        });
+        // test results
+        _.each(attrs, function(attr) {
+            expect(changes[attr]).to.be(true);
+        });
+        expect(model.attributes).to.eql(expected_attrs);
+        // test getters
+        _.each(attrs, function(attr) {
+            expect(model[attr]).to.eql(expected_attrs[attr]);
         });
     });
 }
 
-describe("BookWithMixin", function() {
-    var book = new BookWithMixin();
+function subclass_property_behavior(cls) {
+    attrs_should_be_accessed_by_props(new cls(), ['pages'], { language: "english" });
+    properties_should_be_defined_on_proto(cls, 'pages');
+}
 
-    shared_behavior(book);
-
+function properties_should_be_defined_on_proto(cls) {
+    var props = _.rest(arguments);
     it('should have properties defined on prototype', function() {
-        expect(BookWithMixin.prototype.hasOwnProperty('title')).to.be(true);
-        expect(BookWithMixin.prototype.hasOwnProperty('author')).to.be(true);
-        expect(BookWithMixin.prototype.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(BookWithMixin.prototype, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookWithMixin.prototype, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookWithMixin.prototype, 'language')).not.to.be(undefined);
+        _.each(props, function(prop) {
+            expect(cls.prototype.hasOwnProperty(prop)).to.be(true);
+            expect(Object.getOwnPropertyDescriptor(cls.prototype, prop)).not.to.be(undefined);
+        });
     });
+}
+
+function properties_should_not_be_defined_on_proto(cls) {
+    var props = _.rest(arguments);
+    it('should not have properties defined on prototype', function() {
+        _.each(props, function(prop) {
+            expect(cls.prototype.hasOwnProperty(prop)).to.be(false);
+            expect(Object.getOwnPropertyDescriptor(cls.prototype, prop)).to.be(undefined);
+        });
+    });
+}
+
+function standard_properties_should_be_defined_on_proto(cls) {
+    properties_should_be_defined_on_proto(cls, 'title', 'author', 'language');
+}
+
+function standard_properties_should_not_be_defined_on_proto(cls) {
+    properties_should_not_be_defined_on_proto(cls, 'title', 'author', 'language');
+}
+
+function should_preserve_inheritance_chain(book) {
+    var classes = _.rest(arguments),
+        constructor_calls = _.map(classes, function(cls) { return [ cls, 'constructor' ]; }),
+        initialize_calls = _.map(classes, function(cls) { return [ cls, 'initialize' ]; }),
+        expected_calls = constructor_calls.concat(initialize_calls);
 
     it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookWithMixin, 'constructor'],
-            [BookWithMixin, 'initialize']
-        ]);
+        console.log(expected_calls);
+        expect(book.call_record).to.eql(expected_calls);
     });
-})
+}
 
-describe("BookWithMixin2", function() {
-    var book = new BookWithMixin2();
+function should_propagate_extendWithAttrs_as_extend(cls) {
+    it("extend should == extendWithAttrs", function() {
+        expect(cls.extend).to.eql(Backbone.Model.extendWithAttrs);
+    });
+}
 
-    shared_behavior(book);
-
-    it('should have properties defined on prototype', function() {
-        expect(BookWithMixin2.prototype.hasOwnProperty('title')).to.be(true);
-        expect(BookWithMixin2.prototype.hasOwnProperty('author')).to.be(true);
-        expect(BookWithMixin2.prototype.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(BookWithMixin2.prototype, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookWithMixin2.prototype, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookWithMixin2.prototype, 'language')).not.to.be(undefined);
+function basic_behavior(cls, book, superName, props_on_super) {
+    it("constructor should have setAttrs defined", function() {
+        expect(cls['setAttrs']).to.be.a('function');
+    });
+    it("constructor should have extendWithAttrs defined", function() {
+        expect(cls['extendWithAttrs']).to.be.a('function');
     });
 
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookWithMixin2, 'constructor'],
-            [BookWithMixin2, 'initialize']
-        ]);
-    });
-});
+    attrs_should_have_defaults(book, ['language', 'title', 'author'], { language: "english" });
 
-describe("BookWithConfig", function() {
-    var book = new BookWithConfig();
+    attrs_should_be_accessed_by_props(book, ['title', 'author', 'language']);
 
-    shared_behavior(book);
+    if (props_on_super) {
+        standard_properties_should_be_defined_on_proto(eval(superName));
+        // ensure existing properties are defined in super's proto, not subclasses
+        standard_properties_should_not_be_defined_on_proto(cls);
+    } else {
+        standard_properties_should_be_defined_on_proto(cls);
+    }
 
-    it('should have properties defined on instance', function() {
-        expect(book.hasOwnProperty('title')).to.be(true);
-        expect(book.hasOwnProperty('author')).to.be(true);
-        expect(book.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(book, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(book, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(book, 'language')).not.to.be(undefined);
+    it('should have ' + superName + ' as __super__', function() {
+        expect(cls.__super__).to.be(eval(superName).prototype);
     });
 
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookWithConfig, 'constructor'],
-            [BookWithConfig, 'initialize']
-        ]);
-    });
-});
+}
+function first_level_of_inheritance_behavior(cls, superName) {
+    var book = new cls();
 
-describe("BookWithStaticConfig", function() {
-    var book = new BookWithStaticConfig();
+    basic_behavior(cls, book, superName);
+    should_preserve_inheritance_chain(book, cls);
+}
 
-    shared_behavior(book);
+function second_level_of_inheritance_behavior(cls, superName) {
+    var book = new cls();
 
-    it('should have BookAncestor as __super__', function() {
-        expect(BookWithStaticConfig.__super__).to.be(BookAncestor.prototype);
-    });
+    basic_behavior(cls, book, superName, true);
+    subclass_property_behavior(cls);
+    should_preserve_inheritance_chain(book, cls, eval(superName));
+    should_propagate_extendWithAttrs_as_extend(cls);
+}
 
-    it('should have properties defined on instance', function() {
-        expect(book.hasOwnProperty('title')).to.be(true);
-        expect(book.hasOwnProperty('author')).to.be(true);
-        expect(book.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(book, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(book, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(book, 'language')).not.to.be(undefined);
+describe("single level of inheritance", function() {
+    describe("BookWithSetAttrs", function() {
+        first_level_of_inheritance_behavior(BookWithSetAttrs, 'Backbone.Model');
     });
 
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookAncestor, 'constructor'],
-            [BookAncestor, 'initialize']
-        ]);
-    });
-});
-
-
-describe("BookWithProtoConfig", function() {
-    var book = new BookWithProtoConfig();
-
-    shared_behavior(book);
-
-    it('should have properties defined on prototype', function() {
-        expect(BookWithProtoConfig.prototype.hasOwnProperty('title')).to.be(true);
-        expect(BookWithProtoConfig.prototype.hasOwnProperty('author')).to.be(true);
-        expect(BookWithProtoConfig.prototype.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(BookWithProtoConfig.prototype, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookWithProtoConfig.prototype, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookWithProtoConfig.prototype, 'language')).not.to.be(undefined);
+    describe("BookExtendedWithAttrs", function() {
+        first_level_of_inheritance_behavior(BookExtendedWithAttrs, 'Backbone.Model');
+        should_propagate_extendWithAttrs_as_extend(BookExtendedWithAttrs);
     });
 
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookWithProtoConfig, 'constructor'],
-            [BookWithProtoConfig, 'initialize']
-        ]);
-    });
-})
-
-
-describe("BookExtendedWithAttrs", function() {
-    var book = new BookExtendedWithAttrs();
-
-    shared_behavior(book);
-
-    it('should have BookAncestor as __super__', function() {
-        expect(BookExtendedWithAttrs.__super__).to.be(BookBase.prototype);
+    describe("BookExtendingModelWithAttrs", function() {
+        first_level_of_inheritance_behavior(BookExtendingModelWithAttrs, 'Backbone.ModelWithAttrs');
+        should_propagate_extendWithAttrs_as_extend(BookExtendingModelWithAttrs);
     });
 
-    it('should have properties defined on prototype', function() {
-        expect(BookExtendedWithAttrs.prototype.hasOwnProperty('title')).to.be(true);
-        expect(BookExtendedWithAttrs.prototype.hasOwnProperty('author')).to.be(true);
-        expect(BookExtendedWithAttrs.prototype.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(BookExtendedWithAttrs.prototype, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookExtendedWithAttrs.prototype, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookExtendedWithAttrs.prototype, 'language')).not.to.be(undefined);
-    });
+    describe("BookBaseExtendedWithAttrsSub", function() {
+        var book = new BookBaseExtendedWithAttrsSub();
 
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookExtendedWithAttrs, 'constructor'],
-            [BookExtendedWithAttrs, 'initialize']
-        ]);
-    });
-})
+        basic_behavior(BookBaseExtendedWithAttrsSub, book, 'BookBase');
+        // we have 1 more class in hierarchy
+        should_preserve_inheritance_chain(book, BookBaseExtendedWithAttrsSub, BookBase);
 
-
-describe("BookExtendingModelWithAttrs", function() {
-    var book = new BookExtendingModelWithAttrs();
-
-    shared_behavior(book);
-
-    it('should have ModelWithAttrs as __super__', function() {
-        expect(BookExtendingModelWithAttrs.__super__).to.be(Backbone.ModelWithAttrs.prototype);
-    });
-
-    it('should have properties defined on prototype', function() {
-        expect(BookExtendingModelWithAttrs.prototype.hasOwnProperty('title')).to.be(true);
-        expect(BookExtendingModelWithAttrs.prototype.hasOwnProperty('author')).to.be(true);
-        expect(BookExtendingModelWithAttrs.prototype.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(BookExtendingModelWithAttrs.prototype, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookExtendingModelWithAttrs.prototype, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookExtendingModelWithAttrs.prototype, 'language')).not.to.be(undefined);
-    });
-
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookExtendingModelWithAttrs, 'constructor'],
-            [BookExtendingModelWithAttrs, 'initialize']
-        ]);
-    });
-})
-
-describe("BookWithMixinAndConfig", function() {
-    var book = new BookWithMixinAndConfig();
-
-    shared_behavior(book);
-
-    it('should have Mixin properties defined on prototype', function() {
-        expect(BookWithMixinAndConfig.prototype.hasOwnProperty('title')).to.be(true);
-        expect(BookWithMixinAndConfig.prototype.hasOwnProperty('author')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(BookWithMixinAndConfig.prototype, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookWithMixinAndConfig.prototype, 'author')).not.to.be(undefined);
-    });
-
-    it('should have Configured properties defined on instance', function() {
-        expect(book.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(book, 'language')).not.to.be(undefined);
-    });
-
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookWithMixinAndConfig, 'constructor'],
-            [BookWithMixinAndConfig, 'initialize']
-        ]);
-    });
-});
-
-describe("Model extending BookWithMixin", function() {
-    var book = new BookFromBookWithMixin();
-
-    shared_behavior(book);
-
-    it('should have BookWithMixin as __super__', function() {
-        expect(BookFromBookWithMixin.__super__).to.be(BookWithMixin.prototype);
-    })
-
-    it('should not have properties defined on own prototype', function() {
-        expect(BookFromBookWithMixin.prototype.hasOwnProperty('title')).to.be(false);
-        expect(BookFromBookWithMixin.prototype.hasOwnProperty('author')).to.be(false);
-        expect(BookFromBookWithMixin.prototype.hasOwnProperty('language')).to.be(false);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin.prototype, 'title')).to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin.prototype, 'author')).to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin.prototype, 'language')).to.be(undefined);
-    });
-
-    it('should inherit from / delegate to properties on __super__ prototype', function() {
-        expect(BookFromBookWithMixin.__super__.hasOwnProperty('title')).to.be(true);
-        expect(BookFromBookWithMixin.__super__.hasOwnProperty('author')).to.be(true);
-        expect(BookFromBookWithMixin.__super__.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin.__super__, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin.__super__, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin.__super__, 'language')).not.to.be(undefined);
-    });
-
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookFromBookWithMixin, 'constructor'],
-            [BookWithMixin, 'constructor'],
-            [BookFromBookWithMixin, 'initialize'],
-            [BookWithMixin, 'initialize']
-        ]);
+        should_propagate_extendWithAttrs_as_extend(BookBaseExtendedWithAttrsSub);
     });
 });
 
 
-describe("Model extending BookWithMixin2", function() {
-    var book = new BookFromBookWithMixin2();
+describe("second level of inheritence", function() {
+    describe("BookWithSetAttrsSub", function() {
+        basic_behavior(BookWithSetAttrsSub, new BookWithSetAttrsSub(), "BookWithSetAttrs", true);
 
-    shared_behavior(book);
-
-    it('should have BookWithMixin as __super__', function() {
-        expect(BookFromBookWithMixin2.__super__).to.be(BookWithMixin2.prototype);
-    })
-
-    it('should not have properties defined on own prototype', function() {
-        expect(BookFromBookWithMixin2.prototype.hasOwnProperty('title')).to.be(false);
-        expect(BookFromBookWithMixin2.prototype.hasOwnProperty('author')).to.be(false);
-        expect(BookFromBookWithMixin2.prototype.hasOwnProperty('language')).to.be(false);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin2.prototype, 'title')).to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin2.prototype, 'author')).to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin2.prototype, 'language')).to.be(undefined);
+        // we don't extendWithAttrs so property descriptors are not installed...
+        properties_should_not_be_defined_on_proto(BookWithSetAttrsSub, 'pages');
+        // and nothing is propagated
+        it("extend is not overwritten since we have not extended with extendWithAttrs", function() {
+            expect(BookWithSetAttrsSub.extend).to.eql(Backbone.Model.extend);
+        });
     });
 
-    it('should inherit from / delegate to properties on __super__ prototype', function() {
-        expect(BookFromBookWithMixin2.__super__.hasOwnProperty('title')).to.be(true);
-        expect(BookFromBookWithMixin2.__super__.hasOwnProperty('author')).to.be(true);
-        expect(BookFromBookWithMixin2.__super__.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin2.__super__, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin2.__super__, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(BookFromBookWithMixin2.__super__, 'language')).not.to.be(undefined);
+    describe("BookExtendedWithAttrsSub", function() {
+        second_level_of_inheritance_behavior(BookExtendedWithAttrsSub, 'BookExtendedWithAttrs');
     });
-
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookFromBookWithMixin2, 'constructor'],
-            [BookWithMixin2, 'constructor'],
-            [BookFromBookWithMixin2, 'initialize'],
-            [BookWithMixin2, 'initialize']
-        ]);
+    describe("BookExtendingModelWithAttrsSub", function() {
+        second_level_of_inheritance_behavior(BookExtendingModelWithAttrsSub, 'BookExtendingModelWithAttrs');
     });
-});
+    describe("BookBaseExtendedWithAttrsSubSub", function() {
+        var book = new BookBaseExtendedWithAttrsSubSub();
 
-describe("Model extending BookWithConfig", function() {
-    var book = new BookFromBookWithConfig();
-
-    shared_behavior(book);
-
-    it('should have BookWithConfig as __super__', function() {
-        expect(BookFromBookWithConfig.__super__).to.be(BookWithConfig.prototype);
-    });
-
-    it('should have properties defined on instance', function() {
-        expect(book.hasOwnProperty('title')).to.be(true);
-        expect(book.hasOwnProperty('author')).to.be(true);
-        expect(book.hasOwnProperty('language')).to.be(true);
-        expect(Object.getOwnPropertyDescriptor(book, 'title')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(book, 'author')).not.to.be(undefined);
-        expect(Object.getOwnPropertyDescriptor(book, 'language')).not.to.be(undefined);
-    });
-
-    it('should initialize correctly', function() {
-        expect(book.call_record).to.eql([
-            [BookFromBookWithConfig, 'constructor'],
-            [BookWithConfig, 'constructor'],
-            [BookFromBookWithConfig, 'initialize'],
-            [BookWithConfig, 'initialize']
-        ]);
+        basic_behavior(BookBaseExtendedWithAttrsSubSub, new BookBaseExtendedWithAttrsSubSub(), 'BookBaseExtendedWithAttrsSub', true);
+        subclass_property_behavior(BookBaseExtendedWithAttrsSubSub);
+        // we have 1 additional class in hierarchy
+        should_preserve_inheritance_chain(book, BookBaseExtendedWithAttrsSubSub, BookBaseExtendedWithAttrsSub, BookBase);
+        should_propagate_extendWithAttrs_as_extend(BookBaseExtendedWithAttrsSubSub);
     });
 });

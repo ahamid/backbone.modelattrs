@@ -25,46 +25,26 @@
         installPropertyDescriptors(target, _.toArray(arguments));
     };
 
+    // save original Backbone.Model.extend
+    var backboneModelExtend = Backbone.Model.extend;
+
+    // enable explicitly setting attrs on existing model classes or instances
     Backbone.Model.prototype.setAttrs = setAttrs;
     Backbone.Model.setAttrs = setAttrs;
 
-    Backbone.ModelProperties = function(model_constructor) {
-        var props = _.rest(arguments);
-        model_constructor.prototype.setAttrs.apply(model_constructor.prototype, props);
-    };
-
-    // override Backbone.Model.extend in order to propagate setAttrs as a convenience
-    Backbone.ModelProperties.backboneModelExtend = Backbone.Model.extend;
+    // override Backbone.Model.extend in order to propagate setAttrs to all subclasses as a convenience
     Backbone.Model.extend = function() {
-        var child = Backbone.ModelProperties.backboneModelExtend.apply(this, _.toArray(arguments));
+        var child = backboneModelExtend.apply(this, _.toArray(arguments));
         child.setAttrs = setAttrs;
+        //child.extend = this.extend;
         return child;
     }
 
-    // or through config via injection of constructor (overrides any constructor you have defined)
-    // Book = Backbone.ModelProperties.descend(Book, 'extra', 'props');
-    Backbone.ModelProperties.descend = function(model_constructor) {
-        // Backbone.Model.extend
-        var props = _.rest(arguments),
-            Constructor = function() {
-                // call super constructor chain
-                Constructor.__super__ && Constructor.__super__.constructor.apply(this, arguments);
-                // set attributes for this instance, which could be supplied by descend arguments
-                // or by model 'attrs' property set in model initialize
-                this.setAttrs.apply(this, props)
-            },
-            child = null;
-        // child (Constructor) prototype is overwritten by Backbone when setting up inheritance, so we
-        // can't install descriptors on Constructor.prototype
-        // installPropertyDescriptors(Constructor.prototype, props);
-        child = model_constructor.extend({ constructor: Constructor });
-        child.setAttrs.call(child, props);
-        return child;
-    }
-
-
+    // introduce extendWithAttrs that:
+    // 1) sets virtual properties on model prototype
+    // 2) rewrites extend on descendent hierarchy to extendWithAttrs (so attrs wiring behavior is inherited)
     Backbone.Model.extendWithAttrs = function() {
-        var child = Backbone.ModelProperties.backboneModelExtend.apply(this, _.toArray(arguments));
+        var child = backboneModelExtend.apply(this, _.toArray(arguments));
         if (child.extend != Backbone.Model.extendWithAttrs) {
             child.extend = Backbone.Model.extendWithAttrs;
         }
@@ -73,8 +53,6 @@
     }
 
     // or used as a base via Backbone inheritance
-    // Book = Backbone.ModelWithProperties.extend({ attrs: [ 'title', 'author' ] });
-    Backbone.ModelWithProperties = Backbone.ModelProperties.descend(Backbone.Model);
+    // Book = Backbone.ModelWithAttrs.extend({ attrs: [ 'title', 'author' ] });
     Backbone.ModelWithAttrs = Backbone.Model.extendWithAttrs();
-
 })();
