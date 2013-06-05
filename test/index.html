@@ -6,14 +6,14 @@
 </head>
 <body>
   <div id="mocha"></div>
-  <script src="underscore.js"></script>
-  <script src="backbone.js"></script>
+  <script src="lib/underscore.js"></script>
+  <script src="lib/backbone.js"></script>
   <script src="../backbone.modelprops.js"></script>
-  <script src="expect.js"></script>
-  <script src="mocha.js"></script>
+  <script src="lib/expect.js"></script>
+  <script src="lib/mocha.js"></script>
   <script>mocha.setup('bdd')</script>
   <script src="book.js"></script>
-  <script src="backbone-modelprops_test.js"></script>
+  <script src="backbone.modelattrs_test.js"></script>
   <script>
     mocha.checkLeaks();
     mocha.globals(['Backbone']);
