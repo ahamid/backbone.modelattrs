@@ -13,6 +13,13 @@ BookWithMixin = Backbone.Model.extend({
 }, { type: "BookWithMixin" });
 Backbone.ModelProperties(BookWithMixin, 'title', 'author', 'language');
 
+BookWithMixin2 = Backbone.Model.extend({
+    defaults: { 'language':  "english" },
+    constructor: function() { record_super.call(this, BookWithMixin2, 'constructor'); },
+    initialize: function() { record_super.call(this, BookWithMixin2, 'initialize'); },
+}, { type: "BookWithMixin2" });
+BookWithMixin2.setAttrs('title', 'author', 'language');
+
 // model with properties. these are injected into instance as we must consult 'attrs' property at run/construction-time
 BookWithConfig = Backbone.ModelWithProperties.extend({
     defaults: { 'language':  "english" },
@@ -29,6 +36,21 @@ BookAncestor = Backbone.Model.extend({
 })
 BookWithStaticConfig = Backbone.ModelProperties.descend(BookAncestor, 'title', 'author', 'language');
 
+BookWithProtoConfig = Backbone.Model.extendWithAttrs({
+    defaults: { 'language':  "english" },
+    attrs: [ 'title', 'author', 'language' ],
+    constructor: function() { record_super.call(this, BookWithProtoConfig, 'constructor'); },
+    initialize: function() { record_super.call(this, BookWithProtoConfig, 'initialize'); }
+});
+
+BookBase = Backbone.Model.extend();
+BookExtendedWithAttrs = BookBase.extendWithAttrs({
+    defaults: { 'language':  "english" },
+    attrs: [ 'title', 'author', 'language' ],
+    constructor: function() { record_super.call(this, BookExtendedWithAttrs, 'constructor'); },
+    initialize: function() { record_super.call(this, BookExtendedWithAttrs, 'initialize'); }
+});
+
 // apply properties both ways
 BookWithMixinAndConfig = Backbone.ModelWithProperties.extend({
     defaults: { 'language':  "english" },
@@ -37,6 +59,13 @@ BookWithMixinAndConfig = Backbone.ModelWithProperties.extend({
     attrs: ['language']
 }, { type: "BookWithMixinAndConfig" });
 Backbone.ModelProperties(BookWithMixinAndConfig, 'title', 'author')
+
+BookExtendingModelWithAttrs = Backbone.ModelWithAttrs.extend({
+    defaults: { 'language':  "english" },
+    attrs: [ 'title', 'author', 'language' ],
+    constructor: function() { record_super.call(this, BookExtendingModelWithAttrs, 'constructor'); },
+    initialize: function() { record_super.call(this, BookExtendingModelWithAttrs, 'initialize'); }
+});
 
 // ensure inheritance still works as normal
 BookFromBookWithMixin = BookWithMixin.extend({
@@ -48,3 +77,10 @@ BookFromBookWithConfig = BookWithConfig.extend({
     constructor: function() { record_super.call(this, BookFromBookWithConfig, 'constructor'); },
     initialize: function() { record_super.call(this, BookFromBookWithConfig, 'initialize'); },
 });
+
+BookFromBookWithMixin2 = BookWithMixin2.extend({
+    constructor: function() { record_super.call(this, BookFromBookWithMixin2, 'constructor'); },
+    initialize: function() { record_super.call(this, BookFromBookWithMixin2, 'initialize'); },
+});
+
+
